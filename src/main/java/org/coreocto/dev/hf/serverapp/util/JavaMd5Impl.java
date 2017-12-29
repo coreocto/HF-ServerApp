@@ -1,11 +1,11 @@
 package org.coreocto.dev.hf.serverapp.util;
 
-import org.coreocto.dev.hf.commonlib.util.IMd5;
+import org.coreocto.dev.hf.commonlib.crypto.IHashFunc;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public class JavaMd5Impl implements IMd5 {
+public class JavaMd5Impl implements IHashFunc {
 
     private MessageDigest md = null;
 

@@ -1,16 +1,17 @@
 package org.coreocto.dev.hf.serverapp.listener;
 
+import com.google.gson.Gson;
+import org.coreocto.dev.hf.commonlib.util.Registry;
 import org.coreocto.dev.hf.serverapp.db.DBConnMgr;
-
-import java.sql.Connection;
-import java.sql.SQLException;
+import org.coreocto.dev.hf.serverapp.util.JavaBase64Impl;
+import org.coreocto.dev.hf.serverapp.util.JavaMd5Impl;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
-
-import com.google.gson.Gson;
+import java.sql.Connection;
+import java.sql.SQLException;
 
 @WebListener
 public class AppCtxListener implements ServletContextListener {
@@ -44,5 +45,10 @@ public class AppCtxListener implements ServletContextListener {
 
         Gson gson = new Gson();
         ctx.setAttribute("gson", gson);
+
+        Registry registry = new Registry();
+        registry.setBase64(new JavaBase64Impl());
+        registry.setHashFunc(new JavaMd5Impl());
+        ctx.setAttribute("registry", registry);
     }
 }

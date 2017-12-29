@@ -1,14 +1,8 @@
 package org.coreocto.dev.hf.serverapp.filter;
 
-import java.io.IOException;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+import javax.servlet.*;
 import javax.servlet.annotation.WebFilter;
-import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 
 @WebFilter(urlPatterns = "/*")
 public class RequestFilter implements Filter {
@@ -32,7 +26,7 @@ public class RequestFilter implements Filter {
      */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 
-        System.out.println("requestURI = " + ((HttpServletRequest) request).getRequestURI());
+//        System.out.println("requestURI = " + ((HttpServletRequest) request).getRequestURI());
 
         // pass the request along the filter chain
         chain.doFilter(request, response);
