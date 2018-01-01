@@ -171,11 +171,33 @@ public class SearchServlet extends HttpServlet {
 
             } else if (st.equalsIgnoreCase(Constants.SSE_TYPE_VASST + "")) {
 
+                //compute the document score
+                //each matched document will first compute the TF-IDF (the term freq. will be normalized by max occurrence
+                //and each word inside query vector will be computed and normalized with max occurrence also
+                //then we will compute the the score using the inner product of two vectors and sort in descending order
+
                 final int MAX_RESULT = 10;
 
-                String placeHolders = Strings.repeat("?,", qValues.length).substring(0, 2 * qValues.length - 1);
+                int numOfQueryTerms = qValues.length;
 
-//                SearchResult searchResult = new SearchResult();
+                String placeHolders = Strings.repeat("?,", numOfQueryTerms).substring(0, 2 * numOfQueryTerms - 1);
+
+                // find the term freq. inside the query vector
+                Map<String, Integer> queryTermOccur = new HashMap<>();
+                for (String queryTerm : qValues) {
+                    if (queryTermOccur.containsKey(queryTerm)) {
+                        int occur = queryTermOccur.get(queryTerm);
+                        queryTermOccur.put(queryTerm, occur + 1);
+                    } else {
+                        queryTermOccur.put(queryTerm, 1);
+                    }
+                }
+
+                // find the max term freq. inside the query vector
+                int maxQryTerms = 0;
+                for (Integer i : queryTermOccur.values()) {
+                    maxQryTerms = Math.max(i, maxQryTerms);
+                }
 
                 List<RelScore> relScores = new ArrayList<>();
 
@@ -185,7 +207,7 @@ public class SearchServlet extends HttpServlet {
 
                 //find the document id which contains the keywords
                 try (PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))")) {
-                    for (int i = 1; i <= qValues.length; i++) {
+                    for (int i = 1; i <= numOfQueryTerms; i++) {
                         pStmnt.setString(i, qValues[i - 1]);
                     }
 
@@ -226,9 +248,13 @@ public class SearchServlet extends HttpServlet {
                     try (PreparedStatement pStmnt = con.prepareStatement("select " +
                             "dtf.ccount, (select max(ccount) from tdoc_term_freq dtf2 where dtf.cdocid=dtf2.cdocid) max_ccount, " +
                             "cword " +
-                            "from tdoc_term_freq dtf where cdocid = ?")) {
+                            "from tdoc_term_freq dtf where cdocid = ? and cword in ("+placeHolders+")")) {
 
                         pStmnt.setString(1, curDocId);
+
+                        for (int j = 1; j <= numOfQueryTerms; j++) {
+                            pStmnt.setString(j+1, qValues[j - 1]);
+                        }
 
                         ResultSet rs = pStmnt.executeQuery();
                         while (rs.next()) {
@@ -248,7 +274,12 @@ public class SearchServlet extends HttpServlet {
                                 docScoreMap.put(curDocId, relScore);
                             }
                             double oldScore = relScore.getScore();
-                            relScore.setScore(oldScore + tfidf);
+                            Integer qryTermFreq = queryTermOccur.get(word);
+                            if (qryTermFreq==null){
+                                qryTermFreq = 0;
+                            }
+                            double queryTermScore = qryTermFreq * 1.0 / maxQryTerms;
+                            relScore.setScore(oldScore + (tfidf * queryTermScore));
                         }
 
                     } catch (SQLException e) {

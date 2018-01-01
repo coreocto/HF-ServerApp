@@ -2,6 +2,7 @@ package org.coreocto.dev.hf.serverapp.servlet;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import org.coreocto.dev.hf.serverapp.factory.ResponseFactory;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -10,6 +11,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -38,12 +40,16 @@ public class StatisticsServlet extends HttpServlet {
 //	    System.out.println(paramNames.nextElement());
 //	}
 
+        PrintWriter out = response.getWriter();
+
         String q = request.getParameter("data");
         String type = request.getParameter("type");
 
         JsonObject jsonObj = gson.fromJson(q, JsonObject.class);
 
-//	System.out.println(jsonObj);
+        System.out.println(jsonObj);
+
+        int affectRows = -1;
 
         try (PreparedStatement pStmnt = con.prepareStatement("INSERT INTO public.tstatistics(cdocid, cstarttime, cendtime, cwordcnt, cfilesize, ctype)" + "VALUES (?, ?, ?, ?, ?, ?)")) {
 
@@ -61,10 +67,20 @@ public class StatisticsServlet extends HttpServlet {
                 pStmnt.setNull(5, java.sql.Types.BIGINT);
             }
             pStmnt.setString(6, type);
-            pStmnt.executeUpdate();
+            affectRows = pStmnt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
+        if (affectRows == -1) {
+            JsonObject err = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
+            out.print(err.toString());
+        } else {
+            JsonObject ok = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
+            out.print(ok.toString());
+        }
+
+        System.out.println("affectRows = " + affectRows);
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
