@@ -19,6 +19,7 @@
           <element id="library" level="project" name="Maven: org.codehaus.mojo:animal-sniffer-annotations:1.14" />
           <element id="library" level="project" name="Maven: com.github.coreocto:HF-ServerLib:a61352e" />
           <element id="library" level="project" name="Maven: com.github.coreocto:HF-CommonLib:31b5c89926" />
+          <element id="library" level="project" name="Maven: log4j:log4j:1.2.17" />
         </element>
       </element>
       <element id="directory" name="META-INF">

@@ -1,6 +1,7 @@
 package org.coreocto.dev.hf.serverapp.servlet;
 
 import com.google.gson.JsonObject;
+import org.apache.log4j.Logger;
 import org.coreocto.dev.hf.serverapp.factory.ResponseFactory;
 
 import javax.servlet.ServletContext;
@@ -19,6 +20,9 @@ import java.sql.PreparedStatement;
         name = "RemoveServlet"
 )
 public class RemoveServlet extends HttpServlet {
+
+    final static Logger LOGGER = Logger.getLogger(RemoveServlet.class);
+
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
         PrintWriter out = response.getWriter();
@@ -35,7 +39,7 @@ public class RemoveServlet extends HttpServlet {
             rowCnt = pStmnt.executeUpdate();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("error when marking tdocuments record as deleted", e);
         }
 
         if (rowCnt > 0) {

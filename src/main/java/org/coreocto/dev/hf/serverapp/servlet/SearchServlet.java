@@ -4,6 +4,7 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.apache.log4j.Logger;
 import org.coreocto.dev.hf.commonlib.Constants;
 import org.coreocto.dev.hf.commonlib.suise.util.SuiseUtil;
 import org.coreocto.dev.hf.commonlib.util.Registry;
@@ -30,6 +31,9 @@ import java.util.*;
         name = "SearchServlet"
 )
 public class SearchServlet extends HttpServlet {
+
+    final static Logger LOGGER = Logger.getLogger(SearchServlet.class);
+
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
 
@@ -119,6 +123,7 @@ public class SearchServlet extends HttpServlet {
                     rowCnt = pStmnt.executeUpdate();
 
                 } catch (Exception e) {
+                    LOGGER.error("error when creating new entry for tquery_statistics", e);
                     throw e;
                 }
 
@@ -150,6 +155,7 @@ public class SearchServlet extends HttpServlet {
                     }
 
                 } catch (Exception e) {
+                    LOGGER.error("error when retreiving tdocuments entries from database", e);
                     throw e;
                 }
 //                }
@@ -163,6 +169,7 @@ public class SearchServlet extends HttpServlet {
                     rowCnt = pStmnt.executeUpdate();
 
                 } catch (Exception e) {
+                    LOGGER.error("error when updating entry for tquery_statistics", e);
                     throw e;
                 }
 
@@ -236,6 +243,7 @@ public class SearchServlet extends HttpServlet {
                     }
 
                 } catch (SQLException e) {
+                    LOGGER.error("error when retreiving tdocuments entries from database", e);
                     throw e;
                 }
                 //end
@@ -253,6 +261,7 @@ public class SearchServlet extends HttpServlet {
                     }
 
                 } catch (SQLException e) {
+                    LOGGER.error("error when finding total number of documents from database", e);
                     throw e;
                 }
                 //end
@@ -281,11 +290,11 @@ public class SearchServlet extends HttpServlet {
                             double ntf = tf * 1.0 / mtf; //normalized term freq.
                             double tfidf = ntf * Math.log(docCnt * 1.0 / matchedDocCnt);
 
-                            System.out.println(tf);
-                            System.out.println(mtf);
-                            System.out.println(word);
-                            System.out.println(ntf);
-                            System.out.println(tfidf);
+                            LOGGER.debug("tf=" + tf);
+                            LOGGER.debug("mtf=" + mtf);
+                            LOGGER.debug("word=" + word);
+                            LOGGER.debug("ntf=" + ntf);
+                            LOGGER.debug("tfidf=" + tfidf);
 
                             RelScore relScore = null;
 
@@ -306,6 +315,7 @@ public class SearchServlet extends HttpServlet {
                         }
 
                     } catch (SQLException e) {
+                        LOGGER.error("error when fetching tf-idf information from database", e);
                         throw e;
                     }
                 }
@@ -359,13 +369,11 @@ public class SearchServlet extends HttpServlet {
                     }
                 });
 
-                for (RelScore score:relScores){
-                    System.out.println(gson.toJson(score));
-                }
+//                for (RelScore score : relScores) {
+//                    LOGGER.debug(gson.toJson(score));
+//                }
 
-
-
-                System.out.println(gson.toJson(relScores));
+//                System.out.println(gson.toJson(relScores));
 
                 JsonArray jsonArray = new JsonArray();
 
@@ -383,11 +391,11 @@ public class SearchServlet extends HttpServlet {
                 ok.add("files", jsonArray);
                 out.write(ok.toString());
 
-                System.out.println(ok.toString());
+//                LOGGER.debug(ok.toString());
             }
 
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOGGER.error("error when processing request", ex);
             JsonObject err = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
             out.write(err.toString());
         }

@@ -1,6 +1,7 @@
 package org.coreocto.dev.hf.serverapp.listener;
 
 import com.google.gson.Gson;
+import org.apache.log4j.Logger;
 import org.coreocto.dev.hf.commonlib.util.Registry;
 import org.coreocto.dev.hf.serverapp.db.DBConnMgr;
 import org.coreocto.dev.hf.serverapp.util.JavaBase64Impl;
@@ -16,12 +17,14 @@ import java.sql.SQLException;
 @WebListener
 public class AppCtxListener implements ServletContextListener {
 
+    final static Logger LOGGER = Logger.getLogger(AppCtxListener.class);
+
     public void contextDestroyed(ServletContextEvent arg0) {
         Connection con = (Connection) arg0.getServletContext().getAttribute("DBConnection");
         try {
             con.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("error when closing database connection", e);
         }
     }
 
@@ -29,7 +32,7 @@ public class AppCtxListener implements ServletContextListener {
         // TODO Auto-generated method stub
         ServletContext ctx = arg0.getServletContext();
 
-        System.out.println("contextPath = " + ctx.getContextPath());
+        LOGGER.debug("contextPath = " + ctx.getContextPath());
 
         // initialize DB Connection
         String dbURL = ctx.getInitParameter("dbURL");
@@ -40,7 +43,7 @@ public class AppCtxListener implements ServletContextListener {
             DBConnMgr connectionManager = new DBConnMgr(dbURL, user, pwd);
             ctx.setAttribute("DBConnection", connectionManager.getConnection());
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("error when opening database connection", e);
         }
 
         Gson gson = new Gson();
