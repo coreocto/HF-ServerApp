@@ -33,6 +33,8 @@ public class UploadServlet extends HttpServlet {
         String tokenInJson = request.getParameter("token");
         String ft = request.getParameter("ft");
         String st = request.getParameter("st");
+        String weiv = request.getParameter("weiv"); //word encryption iv
+        String feiv = request.getParameter("feiv"); //file encryption iv
 
         if (st == null || st.isEmpty()) {
             st = Constants.SSE_TYPE_SUISE + "";
@@ -54,14 +56,18 @@ public class UploadServlet extends HttpServlet {
 
         // we need to insert a document record here
 
-        try (PreparedStatement pStmnt = con.prepareStatement("insert into tdocuments (cdocid,cdelete,cft,cst) select ? as text, ? as integer, cast(? as integer), cast(? as integer) where not exists (select 1 from tdocuments where cdocid = ? and cdelete = ?)")) {
+        try (PreparedStatement pStmnt = con.prepareStatement("insert into tdocuments (cdocid,cdelete,cft,cst,cweiv,cfeiv) select ? as text, ? as integer, cast(? as integer), cast(? as integer), ? as text, ? as text where not exists (select 1 from tdocuments where cdocid = ? and cdelete = ?)")) {
 
-            pStmnt.setString(1, docId);
-            pStmnt.setInt(2, 0);
-            pStmnt.setString(3, ft);
-            pStmnt.setString(4, st);
-            pStmnt.setString(5, docId);
-            pStmnt.setInt(6, 0);
+            int paramIdx = 1;
+
+            pStmnt.setString(paramIdx++, docId);
+            pStmnt.setInt(paramIdx++, 0);
+            pStmnt.setString(paramIdx++, ft);
+            pStmnt.setString(paramIdx++, st);
+            pStmnt.setString(paramIdx++, weiv);
+            pStmnt.setString(paramIdx++, feiv);
+            pStmnt.setString(paramIdx++, docId);
+            pStmnt.setInt(paramIdx++, 0);
             rowCnt = pStmnt.executeUpdate();
 
         } catch (Exception e) {
@@ -79,17 +85,20 @@ public class UploadServlet extends HttpServlet {
                 // because the file now save in google drive, the code for dataFileItem would not execute
                 // we need to insert a document record here
 
-                try (PreparedStatement pStmnt = con.prepareStatement("insert into tdocuments (cdocid,cdelete) select ? as text, ? as integer where not exists (select 1 from tdocuments where cdocid = ? and cdelete = ?)")) {
-
-                    pStmnt.setString(1, addTokenResult.getId());
-                    pStmnt.setInt(2, 0);
-                    pStmnt.setString(3, addTokenResult.getId());
-                    pStmnt.setInt(4, 0);
-                    rowCnt = pStmnt.executeUpdate();
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+//                try (PreparedStatement pStmnt = con.prepareStatement("insert into tdocuments (cdocid,cdelete, cweiv) select ? as text, ? as integer, ? as text where not exists (select 1 from tdocuments where cdocid = ? and cdelete = ?)")) {
+//
+//                    String atrDocId = addTokenResult.getId();
+//
+//                    pStmnt.setString(1, atrDocId);
+//                    pStmnt.setInt(2, 0);
+//                    pStmnt.setString(3, weiv);
+//                    pStmnt.setString(4, atrDocId);
+//                    pStmnt.setInt(5, 0);
+//                    rowCnt = pStmnt.executeUpdate();
+//
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                }
 
                 try (PreparedStatement pStmnt2 = con.prepareStatement("insert into tdocument_indexes (cdocid,ctoken,corder) values (?,?,?)")) {
 

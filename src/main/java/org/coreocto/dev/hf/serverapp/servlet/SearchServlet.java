@@ -3,11 +3,8 @@ package org.coreocto.dev.hf.serverapp.servlet;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
 import org.coreocto.dev.hf.commonlib.Constants;
-import org.coreocto.dev.hf.commonlib.suise.bean.AddTokenResult;
 import org.coreocto.dev.hf.commonlib.suise.util.SuiseUtil;
 import org.coreocto.dev.hf.commonlib.util.Registry;
 import org.coreocto.dev.hf.commonlib.vasst.bean.RelScore;
@@ -72,47 +69,47 @@ public class SearchServlet extends HttpServlet {
                 }
 
                 //load index into memory
-                if (inMemSrh != null && !inMemSrh.isEmpty()) {
-
-                    long loadStartTime = System.currentTimeMillis();
-
-                    inMemHashtable = (Map) ctx.getAttribute("inmem-hashtable");
-                    if (inMemHashtable == null) {
-                        inMemHashtable = new HashMap<>();
-                        ctx.setAttribute("inmem-hashtable", inMemHashtable);
-
-                        try (PreparedStatement pStmnt = con.prepareStatement("select cdocid,ctoken from tdocument_indexes t2 where 1=1 order by cdocid, corder")) {
-
-                            ResultSet rs = pStmnt.executeQuery();
-
-                            AddTokenResult addTokenResult = null;
-
-                            String lastDocId = null;
-
-                            while (rs.next()) {
-                                String curDocId = rs.getString(1);
-                                if (lastDocId == null || !lastDocId.equals(curDocId)) {
-                                    addTokenResult = new AddTokenResult();
-                                    addTokenResult.setId(curDocId);
-                                    addTokenResult.setC(new ArrayList<>());
-                                    addTokenResult.setX(new ArrayList<>());
-                                    lastDocId = curDocId;
-
-                                    server.Add(addTokenResult, null);
-                                }
-                                addTokenResult.getC().add(rs.getString(2));
-                            }
-
-                        } catch (Exception e) {
-                            throw e;
-                        }
-                    }
-
-                    long loadEndTime = System.currentTimeMillis();
-                    System.out.println("loaded index info from database, elapsed time = " + (loadEndTime - loadStartTime) + "ms");
-                    //end load index into memory
-
-                }
+//                if (inMemSrh != null && !inMemSrh.isEmpty()) {
+//
+//                    long loadStartTime = System.currentTimeMillis();
+//
+//                    inMemHashtable = (Map) ctx.getAttribute("inmem-hashtable");
+//                    if (inMemHashtable == null) {
+//                        inMemHashtable = new HashMap<>();
+//                        ctx.setAttribute("inmem-hashtable", inMemHashtable);
+//
+//                        try (PreparedStatement pStmnt = con.prepareStatement("select cdocid,ctoken from tdocument_indexes t2 where 1=1 order by cdocid, corder")) {
+//
+//                            ResultSet rs = pStmnt.executeQuery();
+//
+//                            AddTokenResult addTokenResult = null;
+//
+//                            String lastDocId = null;
+//
+//                            while (rs.next()) {
+//                                String curDocId = rs.getString(1);
+//                                if (lastDocId == null || !lastDocId.equals(curDocId)) {
+//                                    addTokenResult = new AddTokenResult();
+//                                    addTokenResult.setId(curDocId);
+//                                    addTokenResult.setC(new ArrayList<>());
+//                                    addTokenResult.setX(new ArrayList<>());
+//                                    lastDocId = curDocId;
+//
+//                                    server.Add(addTokenResult, null);
+//                                }
+//                                addTokenResult.getC().add(rs.getString(2));
+//                            }
+//
+//                        } catch (Exception e) {
+//                            throw e;
+//                        }
+//                    }
+//
+//                    long loadEndTime = System.currentTimeMillis();
+//                    System.out.println("loaded index info from database, elapsed time = " + (loadEndTime - loadStartTime) + "ms");
+//                    //end load index into memory
+//
+//                }
 
                 try (PreparedStatement pStmnt = con.prepareStatement("insert into tquery_statistics (cqueryid,cstarttime,cdata) values (?,?,?)")) {
 
@@ -125,30 +122,42 @@ public class SearchServlet extends HttpServlet {
                     throw e;
                 }
 
-                List<String> searchResult = new ArrayList<>();
+                //List<String> searchResult = new ArrayList<>();
                 // List<String> searchResult = server.Search(q);
+                JsonArray jsonArray = new JsonArray();
 
-                if (inMemSrh != null && !inMemSrh.isEmpty()) {
-                    searchResult.addAll(server.Search(q));
-                } else {
-                    try (PreparedStatement pStmnt = con.prepareStatement("select cdocid from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and H(?,R(corder))||R(corder) = ctoken)")) {
+//                if (inMemSrh != null && !inMemSrh.isEmpty()) {
+//                    searchResult.addAll(server.Search(q));
+//                } else {
+                try (PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and H(?,R(corder))||R(corder) = ctoken)")) {
 
-                        pStmnt.setString(1, q);
-                        ResultSet rs = pStmnt.executeQuery();
+                    pStmnt.setString(1, q);
+                    ResultSet rs = pStmnt.executeQuery();
 
-                        while (rs.next()) {
-                            searchResult.add(rs.getString(1));
-                        }
+                    while (rs.next()) {
+//                            searchResult.add(rs.getString(1));
 
-                    } catch (Exception e) {
-                        throw e;
+                        String docId = rs.getString(1);
+                        Integer type = rs.getInt(2);
+                        String feiv = rs.getString(3);
+
+                        JsonObject tmp = new JsonObject();
+                        tmp.addProperty("name", docId);
+                        tmp.addProperty("type", type);
+                        tmp.addProperty("feiv", feiv);
+                        jsonArray.add(tmp);
+
                     }
+
+                } catch (Exception e) {
+                    throw e;
                 }
+//                }
 
                 try (PreparedStatement pStmnt = con.prepareStatement("update tquery_statistics set cendtime = ?, cmatchedcnt = ? where cqueryid = ?")) {
 
                     pStmnt.setLong(1, System.currentTimeMillis());
-                    pStmnt.setInt(2, searchResult.size());
+                    pStmnt.setInt(2, jsonArray.size());
                     pStmnt.setString(3, qid);
 
                     rowCnt = pStmnt.executeUpdate();
@@ -157,13 +166,13 @@ public class SearchServlet extends HttpServlet {
                     throw e;
                 }
 
-                JsonElement element = gson.toJsonTree(searchResult, new TypeToken<List<String>>() {
-                }.getType());
-                JsonArray jsonArray = element.getAsJsonArray();
+//                JsonElement element = gson.toJsonTree(searchResult, new TypeToken<List<String>>() {
+//                }.getType());
+//                JsonArray jsonArray = element.getAsJsonArray();
 
                 JsonObject jsonObj = new JsonObject();
                 jsonObj.addProperty("status", "ok");
-                jsonObj.addProperty("count", searchResult.size());
+                jsonObj.addProperty("count", jsonArray.size());
                 jsonObj.add("files", jsonArray);
                 out.write(jsonObj.toString());
 
@@ -203,10 +212,10 @@ public class SearchServlet extends HttpServlet {
 
                 List<String> matchedDocIds = new ArrayList<>();
 
-                Map<String, Integer> docTypeLookup = new HashMap<>();
+                Map<String, JsonObject> docTypeLookup = new HashMap<>();
 
                 //find the document id which contains the keywords
-                try (PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))")) {
+                try (PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))")) {
                     for (int i = 1; i <= numOfQueryTerms; i++) {
                         pStmnt.setString(i, qValues[i - 1]);
                     }
@@ -215,7 +224,15 @@ public class SearchServlet extends HttpServlet {
                     while (rs.next()) {
                         String docId = rs.getString(1);
                         matchedDocIds.add(docId);
-                        docTypeLookup.put(docId, rs.getInt(2));
+                        int type = rs.getInt(2);
+                        String feiv = rs.getString(3);
+
+                        JsonObject tmp = new JsonObject();
+                        tmp.addProperty("name", docId);
+                        tmp.addProperty("type", type);
+                        tmp.addProperty("feiv", feiv);
+
+                        docTypeLookup.put(docId, tmp);
                     }
 
                 } catch (SQLException e) {
@@ -246,14 +263,14 @@ public class SearchServlet extends HttpServlet {
                 for (int i = 0; i < matchedDocCnt; i++) {
                     String curDocId = matchedDocIds.get(i);
                     try (PreparedStatement pStmnt = con.prepareStatement("select " +
-                            "dtf.ccount, (select max(ccount) from tdoc_term_freq dtf2 where dtf.cdocid=dtf2.cdocid) max_ccount, " +
+                            "dtf.ccount, (select max(ccount) from tdoc_term_freq dtf2 where dtf.cword=dtf2.cword) max_ccount, " +
                             "cword " +
-                            "from tdoc_term_freq dtf where cdocid = ? and cword in ("+placeHolders+")")) {
+                            "from tdoc_term_freq dtf where cdocid = ? and cword in (" + placeHolders + ")")) {
 
                         pStmnt.setString(1, curDocId);
 
                         for (int j = 1; j <= numOfQueryTerms; j++) {
-                            pStmnt.setString(j+1, qValues[j - 1]);
+                            pStmnt.setString(j + 1, qValues[j - 1]);
                         }
 
                         ResultSet rs = pStmnt.executeQuery();
@@ -263,6 +280,12 @@ public class SearchServlet extends HttpServlet {
                             String word = rs.getString(3); //the encrypted keyword, not necessary
                             double ntf = tf * 1.0 / mtf; //normalized term freq.
                             double tfidf = ntf * Math.log(docCnt * 1.0 / matchedDocCnt);
+
+                            System.out.println(tf);
+                            System.out.println(mtf);
+                            System.out.println(word);
+                            System.out.println(ntf);
+                            System.out.println(tfidf);
 
                             RelScore relScore = null;
 
@@ -275,7 +298,7 @@ public class SearchServlet extends HttpServlet {
                             }
                             double oldScore = relScore.getScore();
                             Integer qryTermFreq = queryTermOccur.get(word);
-                            if (qryTermFreq==null){
+                            if (qryTermFreq == null) {
                                 qryTermFreq = 0;
                             }
                             double queryTermScore = qryTermFreq * 1.0 / maxQryTerms;
@@ -336,6 +359,12 @@ public class SearchServlet extends HttpServlet {
                     }
                 });
 
+                for (RelScore score:relScores){
+                    System.out.println(gson.toJson(score));
+                }
+
+
+
                 System.out.println(gson.toJson(relScores));
 
                 JsonArray jsonArray = new JsonArray();
@@ -344,14 +373,12 @@ public class SearchServlet extends HttpServlet {
 
                 for (int i = 0; i < minResult; i++) {
                     String docId = relScores.get(i).getDocId();
-                    Integer type = docTypeLookup.get(docId);
-                    JsonObject tmp = new JsonObject();
-                    tmp.addProperty("name", docId);
-                    tmp.addProperty("type", type);
+                    JsonObject tmp = docTypeLookup.get(docId);
                     jsonArray.add(tmp);
                 }
 
                 JsonObject ok = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
+                ok.addProperty("totalCount", relScores.size());
                 ok.addProperty("count", jsonArray.size());
                 ok.add("files", jsonArray);
                 out.write(ok.toString());
