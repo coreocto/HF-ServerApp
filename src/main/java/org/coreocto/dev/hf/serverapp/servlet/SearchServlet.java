@@ -6,11 +6,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.apache.log4j.Logger;
 import org.coreocto.dev.hf.commonlib.Constants;
-import org.coreocto.dev.hf.commonlib.suise.util.SuiseUtil;
-import org.coreocto.dev.hf.commonlib.util.Registry;
-import org.coreocto.dev.hf.commonlib.vasst.bean.RelScore;
-import org.coreocto.dev.hf.serverapp.factory.ResponseFactory;
-import org.coreocto.dev.hf.serverlib.suise.SuiseServer;
+import org.coreocto.dev.hf.commonlib.sse.vasst.bean.RelScore;
+import org.coreocto.dev.hf.commonlib.util.IBase64;
+import org.coreocto.dev.hf.serverapp.AppConstants;
+import org.coreocto.dev.hf.serverapp.bean.DocInfo;
+import org.coreocto.dev.hf.serverapp.util.JavaBase64Impl;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -36,157 +36,98 @@ public class SearchServlet extends HttpServlet {
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
-
         Connection con = (Connection) ctx.getAttribute("DBConnection");
         Gson gson = (Gson) ctx.getAttribute("gson");
-
         PrintWriter out = response.getWriter();
 
+        IBase64 base64 = new JavaBase64Impl();
+
         String st = request.getParameter("st");
+        String[] qValues = request.getParameterValues("q");
+
+        String qid = request.getParameter("qid");
+
 
         if (st == null || st.isEmpty()) {
             st = Constants.SSE_TYPE_SUISE + "";
         }
 
+        String q = (qValues != null && qValues.length > 0) ? qValues[0] : "";
+
         int rowCnt = 0;
 
-        String[] qValues = request.getParameterValues("q");
+        if (qid == null || qid.isEmpty()) {
+            qid = UUID.randomUUID().toString();
+        }
 
-        try {
-            String q = (qValues != null && qValues.length > 0) ? qValues[0] : "";
-            String qid = request.getParameter("qid");
+        try (PreparedStatement pStmnt = con.prepareStatement("insert into tquery_statistics (cqueryid,cstarttime,cdata,cssetype) values (?,?,?,?)")) {
 
-            if (qid == null || qid.isEmpty()) {
-                qid = UUID.randomUUID().toString();
-            }
+            pStmnt.setString(1, qid);
+            pStmnt.setLong(2, System.currentTimeMillis());
+            pStmnt.setString(3, q);
+            pStmnt.setInt(4, Integer.parseInt(st));
+            rowCnt = pStmnt.executeUpdate();
 
-            if (st.equalsIgnoreCase(Constants.SSE_TYPE_SUISE + "")) {
+        } catch (Exception e) {
+            LOGGER.error("error when creating new entry for tquery_statistics", e);
+            rowCnt = -1;
+        }
 
-                String inMemSrh = request.getParameter("inMemSrh");
+        if (rowCnt != 1) {
+            String msg = "error when inserting tquery_statistics record";
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(msg);
+            LOGGER.error(msg);
+        } else {
 
-                Map<String, List<String>> inMemHashtable = null;
+            int count = 0;
+            int totalCnt = 0;
 
-                SuiseServer server = (SuiseServer) ctx.getAttribute("suiseServer");
-                if (server == null) {
-                    server = new SuiseServer(new SuiseUtil((Registry) ctx.getAttribute("registry")));
-                    ctx.setAttribute("suiseServer", server);
+            List<DocInfo> files = new ArrayList<>();
+
+            if (
+                    st.equals(Constants.SSE_TYPE_SUISE + "") ||
+                            st.equals(AppConstants.SSE_TYPE_SUISE_2 + "") ||
+                            st.equals(AppConstants.SSE_TYPE_SUISE_3 + "")
+                    ) {
+
+                Map<String, List<DocInfo>> cachedResult = (Map<String, List<DocInfo>>) ctx.getAttribute("suiseCachedResult");
+                if (cachedResult == null) {
+                    cachedResult = new HashMap<>();
                 }
 
-                //load index into memory
-//                if (inMemSrh != null && !inMemSrh.isEmpty()) {
-//
-//                    long loadStartTime = System.currentTimeMillis();
-//
-//                    inMemHashtable = (Map) ctx.getAttribute("inmem-hashtable");
-//                    if (inMemHashtable == null) {
-//                        inMemHashtable = new HashMap<>();
-//                        ctx.setAttribute("inmem-hashtable", inMemHashtable);
-//
-//                        try (PreparedStatement pStmnt = con.prepareStatement("select cdocid,ctoken from tdocument_indexes t2 where 1=1 order by cdocid, corder")) {
-//
-//                            ResultSet rs = pStmnt.executeQuery();
-//
-//                            AddTokenResult addTokenResult = null;
-//
-//                            String lastDocId = null;
-//
-//                            while (rs.next()) {
-//                                String curDocId = rs.getString(1);
-//                                if (lastDocId == null || !lastDocId.equals(curDocId)) {
-//                                    addTokenResult = new AddTokenResult();
-//                                    addTokenResult.setId(curDocId);
-//                                    addTokenResult.setC(new ArrayList<>());
-//                                    addTokenResult.setX(new ArrayList<>());
-//                                    lastDocId = curDocId;
-//
-//                                    server.Add(addTokenResult, null);
-//                                }
-//                                addTokenResult.getC().add(rs.getString(2));
-//                            }
-//
-//                        } catch (Exception e) {
-//                            throw e;
-//                        }
-//                    }
-//
-//                    long loadEndTime = System.currentTimeMillis();
-//                    System.out.println("loaded index info from database, elapsed time = " + (loadEndTime - loadStartTime) + "ms");
-//                    //end load index into memory
-//
-//                }
-
-                try (PreparedStatement pStmnt = con.prepareStatement("insert into tquery_statistics (cqueryid,cstarttime,cdata) values (?,?,?)")) {
-
-                    pStmnt.setString(1, qid);
-                    pStmnt.setLong(2, System.currentTimeMillis());
-                    pStmnt.setString(3, q);
-                    rowCnt = pStmnt.executeUpdate();
-
-                } catch (Exception e) {
-                    LOGGER.error("error when creating new entry for tquery_statistics", e);
-                    throw e;
-                }
-
-                //List<String> searchResult = new ArrayList<>();
-                // List<String> searchResult = server.Search(q);
-                JsonArray jsonArray = new JsonArray();
-
-//                if (inMemSrh != null && !inMemSrh.isEmpty()) {
-//                    searchResult.addAll(server.Search(q));
-//                } else {
-                try (PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and H(?,R(corder))||R(corder) = ctoken)")) {
+                try (
+                        PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and H(ctoken,?)=?)");
+                ) {
 
                     pStmnt.setString(1, q);
-                    ResultSet rs = pStmnt.executeQuery();
+                    pStmnt.setInt(2, 1);
+                    ResultSet result = pStmnt.executeQuery();
 
-                    while (rs.next()) {
-//                            searchResult.add(rs.getString(1));
+                    while (result.next()) {
+                        String docId = result.getString(1);
+                        Integer type = result.getInt(2);
+                        String feiv = result.getString(3);
 
-                        String docId = rs.getString(1);
-                        Integer type = rs.getInt(2);
-                        String feiv = rs.getString(3);
+                        DocInfo docInfo = new DocInfo();
+                        docInfo.setName(docId);
+                        docInfo.setType(type);
+                        docInfo.setFeiv(feiv);
 
-                        JsonObject tmp = new JsonObject();
-                        tmp.addProperty("name", docId);
-                        tmp.addProperty("type", type);
-                        tmp.addProperty("feiv", feiv);
-                        jsonArray.add(tmp);
-
+                        files.add(docInfo);
                     }
 
-                } catch (Exception e) {
-                    LOGGER.error("error when retreiving tdocuments entries from database", e);
-                    throw e;
-                }
-//                }
-
-                try (PreparedStatement pStmnt = con.prepareStatement("update tquery_statistics set cendtime = ?, cmatchedcnt = ? where cqueryid = ?")) {
-
-                    pStmnt.setLong(1, System.currentTimeMillis());
-                    pStmnt.setInt(2, jsonArray.size());
-                    pStmnt.setString(3, qid);
-
-                    rowCnt = pStmnt.executeUpdate();
-
-                } catch (Exception e) {
-                    LOGGER.error("error when updating entry for tquery_statistics", e);
-                    throw e;
+                } catch (SQLException ex) {
+                    String msg = "error when fetching document info from tdocuments";
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    out.print(msg);
+                    LOGGER.error(msg, ex);
                 }
 
-//                JsonElement element = gson.toJsonTree(searchResult, new TypeToken<List<String>>() {
-//                }.getType());
-//                JsonArray jsonArray = element.getAsJsonArray();
+                cachedResult.put(q, files);
 
-                JsonObject jsonObj = new JsonObject();
-                jsonObj.addProperty("status", "ok");
-                jsonObj.addProperty("count", jsonArray.size());
-                jsonObj.add("files", jsonArray);
-                out.write(jsonObj.toString());
-
-                System.out.println(jsonObj.toString());
-
+                count = files.size();
             } else if (st.equalsIgnoreCase(Constants.SSE_TYPE_VASST + "")) {
-
                 //compute the document score
                 //each matched document will first compute the TF-IDF (the term freq. will be normalized by max occurrence
                 //and each word inside query vector will be computed and normalized with max occurrence also
@@ -196,7 +137,7 @@ public class SearchServlet extends HttpServlet {
 
                 int numOfQueryTerms = qValues.length;
 
-                String placeHolders = Strings.repeat("?,", numOfQueryTerms).substring(0, 2 * numOfQueryTerms - 1);
+                String placeHolders = Strings.repeat("md5(?),", numOfQueryTerms).substring(0, 7 * numOfQueryTerms - 1);
 
                 // find the term freq. inside the query vector
                 Map<String, Integer> queryTermOccur = new HashMap<>();
@@ -219,82 +160,89 @@ public class SearchServlet extends HttpServlet {
 
                 List<String> matchedDocIds = new ArrayList<>();
 
-                Map<String, JsonObject> docTypeLookup = new HashMap<>();
+                Map<String, DocInfo> docTypeLookup = new HashMap<>();
 
-                //find the document id which contains the keywords
-                try (PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))")) {
-                    for (int i = 1; i <= numOfQueryTerms; i++) {
-                        pStmnt.setString(i, qValues[i - 1]);
+                try (
+                        PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))");
+                ) {
+
+                    for (int i = qValues.length - 1; i >= 0; i--) {
+                        pStmnt.setString(i + 1, qValues[i]);
                     }
 
-                    ResultSet rs = pStmnt.executeQuery();
-                    while (rs.next()) {
-                        String docId = rs.getString(1);
+                    ResultSet result = pStmnt.executeQuery();
+
+                    while (result.next()) {
+                        String docId = result.getString(1);
                         matchedDocIds.add(docId);
-                        int type = rs.getInt(2);
-                        String feiv = rs.getString(3);
+                        int type = result.getInt(2);
+                        String feiv = result.getString(3);
 
-                        JsonObject tmp = new JsonObject();
-                        tmp.addProperty("name", docId);
-                        tmp.addProperty("type", type);
-                        tmp.addProperty("feiv", feiv);
+                        DocInfo docInfo = new DocInfo();
+                        docInfo.setName(docId);
+                        docInfo.setType(type);
+                        docInfo.setFeiv(feiv);
 
-                        docTypeLookup.put(docId, tmp);
+                        docTypeLookup.put(docId, docInfo);
                     }
 
-                } catch (SQLException e) {
-                    LOGGER.error("error when retreiving tdocuments entries from database", e);
-                    throw e;
+                } catch (SQLException ex) {
+                    String msg = "error when fetching document info from tdocuments";
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    out.print(msg);
+                    LOGGER.error(msg, ex);
                 }
-                //end
 
                 int matchedDocCnt = matchedDocIds.size();
 
                 int docCnt = 0;
 
-                //find the total no. of documents
-                try (PreparedStatement pStmnt = con.prepareStatement("select count(*) from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid)")) {
+                try (
+                        PreparedStatement pStmnt = con.prepareStatement("select count(*) from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid)");
+                ) {
 
-                    ResultSet rs = pStmnt.executeQuery();
-                    if (rs.next()) {
-                        docCnt = rs.getInt(1);
+                    ResultSet result = pStmnt.executeQuery();
+
+                    if (result.next()) {
+                        docCnt = result.getInt(1);
                     }
 
-                } catch (SQLException e) {
-                    LOGGER.error("error when finding total number of documents from database", e);
-                    throw e;
+                } catch (SQLException ex) {
+                    String msg = "error when counting documents from tdocuments";
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    out.print(msg);
+                    LOGGER.error(msg, ex);
                 }
-                //end
 
                 Map<String, RelScore> docScoreMap = new HashMap<>();
 
-                //calculate tf-idf
-                for (int i = 0; i < matchedDocCnt; i++) {
-                    String curDocId = matchedDocIds.get(i);
-                    try (PreparedStatement pStmnt = con.prepareStatement("select " +
-                            "dtf.ccount, (select max(ccount) from tdoc_term_freq dtf2 where dtf.cword=dtf2.cword) max_ccount, " +
-                            "cword " +
-                            "from tdoc_term_freq dtf where cdocid = ? and cword in (" + placeHolders + ")")) {
+                try (
+                        PreparedStatement pStmnt = con.prepareStatement("select " +
+                                "dtf.ccount, (select max(ccount) from tdoc_term_freq dtf2 where dtf.cword=dtf2.cword) max_ccount, " +
+                                "cword " +
+                                "from tdoc_term_freq dtf where cdocid = ? and cword in (" + placeHolders + ")");
+                ) {
+
+                    //calculate tf-idf
+                    for (int i = 0; i < matchedDocCnt; i++) {
+                        String curDocId = matchedDocIds.get(i);
+
+                        pStmnt.clearParameters();
 
                         pStmnt.setString(1, curDocId);
 
-                        for (int j = 1; j <= numOfQueryTerms; j++) {
-                            pStmnt.setString(j + 1, qValues[j - 1]);
+                        for (int j = qValues.length - 1; j >= 0; j--) {
+                            pStmnt.setString(j + 2, qValues[j]);
                         }
 
-                        ResultSet rs = pStmnt.executeQuery();
-                        while (rs.next()) {
-                            int tf = rs.getInt(1);  //term freq.
-                            int mtf = rs.getInt(2); //max term freq.
-                            String word = rs.getString(3); //the encrypted keyword, not necessary
+                        ResultSet tmpRs = pStmnt.executeQuery();
+
+                        while (tmpRs.next()) {
+                            int tf = tmpRs.getInt(1);  //term freq.
+                            int mtf = tmpRs.getInt(2); //max term freq.
+                            String word = tmpRs.getString(3); //the encrypted keyword, not necessary
                             double ntf = tf * 1.0 / mtf; //normalized term freq.
                             double tfidf = ntf * Math.log(docCnt * 1.0 / matchedDocCnt);
-
-                            LOGGER.debug("tf=" + tf);
-                            LOGGER.debug("mtf=" + mtf);
-                            LOGGER.debug("word=" + word);
-                            LOGGER.debug("ntf=" + ntf);
-                            LOGGER.debug("tfidf=" + tfidf);
 
                             RelScore relScore = null;
 
@@ -314,54 +262,18 @@ public class SearchServlet extends HttpServlet {
                             relScore.setScore(oldScore + (tfidf * queryTermScore));
                         }
 
-                    } catch (SQLException e) {
-                        LOGGER.error("error when fetching tf-idf information from database", e);
-                        throw e;
+
+                        //end
                     }
+
+                } catch (SQLException ex) {
+                    String msg = "error when calculating TF-IDF from tdoc_term_freq";
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    out.print(msg);
+                    LOGGER.error(msg, ex);
                 }
-                //end
 
                 relScores.addAll(docScoreMap.values());
-
-//                try (PreparedStatement pStmnt = con.prepareStatement("select " +
-//                        "dtf.cdocid, dtf.ccount, (select max(ccount) from tdoc_term_freq dtf2 where dtf.cdocid=dtf2.cdocid) max_ccount, " +
-//                        "cword " +
-//                        "from tdoc_term_freq dtf where cword in (" + placeHolders + ")")) {
-//
-//                    for (int i = 1; i <= qValues.length; i++) {
-//                        pStmnt.setString(i, qValues[i - 1]);
-//                    }
-//
-//                    ResultSet rs = pStmnt.executeQuery();
-//                    while (rs.next()) {
-//                        String docId = rs.getString(1);
-//                        int tf = rs.getInt(2);  //term freq.
-//                        int mtf = rs.getInt(3); //max term freq.
-//                        double ntf = tf * 1.0 / mtf; //normalized term freq.
-//                        int docCnt = rs.getInt(4);
-//                        int matchDocCnt = rs.getInt(5);
-//                        double idf = Math.log(docCnt * 1.0 / matchDocCnt);
-//                        double tfidf = ntf * idf;
-//                        String word = rs.getString(6);
-//
-//                        System.out.println("docId=" + docId);
-//                        System.out.println("tf=" + tf);
-//                        System.out.println("mtf=" + mtf);
-//                        System.out.println("ntf=" + ntf);
-//                        System.out.println("docCnt=" + docCnt);
-//                        System.out.println("matchDocCnt=" + matchDocCnt);
-//                        System.out.println("idf=" + idf);
-//                        System.out.println("tfidf=" + tfidf);
-//
-//                        RelScore relScore = new RelScore();
-//                        relScore.setDocId(docId);
-//                        relScore.setKeyword(word);
-//                        relScore.setScore(tfidf);
-//                        relScores.add(relScore);
-//                    }
-//                } catch (SQLException e) {
-//                    throw e;
-//                }
 
                 Collections.sort(relScores, new Comparator<RelScore>() {
                     public int compare(RelScore o1, RelScore o2) {
@@ -369,35 +281,85 @@ public class SearchServlet extends HttpServlet {
                     }
                 });
 
-//                for (RelScore score : relScores) {
-//                    LOGGER.debug(gson.toJson(score));
-//                }
-
-//                System.out.println(gson.toJson(relScores));
-
-                JsonArray jsonArray = new JsonArray();
-
                 int minResult = Math.min(relScores.size(), MAX_RESULT);
 
-                for (int i = 0; i < minResult; i++) {
-                    String docId = relScores.get(i).getDocId();
-                    JsonObject tmp = docTypeLookup.get(docId);
-                    jsonArray.add(tmp);
+                for (int x = 0; x < minResult; x++) {
+                    String docId = relScores.get(x).getDocId();
+                    DocInfo tmp = docTypeLookup.get(docId);
+                    files.add(tmp);
                 }
 
-                JsonObject ok = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
-                ok.addProperty("totalCount", relScores.size());
-                ok.addProperty("count", jsonArray.size());
-                ok.add("files", jsonArray);
-                out.write(ok.toString());
+                count = files.size();
+                totalCnt = relScores.size();
+            } else if (st.equalsIgnoreCase(Constants.SSE_TYPE_CHLH + "")) {
 
-//                LOGGER.debug(ok.toString());
+                try (
+                        PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tchlh d2 where search(d2.cbf, ?) = ? and d.cdocid = d2.cdocid)");
+                ) {
+
+                    pStmnt.setString(1, q);
+                    pStmnt.setInt(2, 1);
+
+                    ResultSet rs = pStmnt.executeQuery();
+
+                    while (rs.next()) {
+                        DocInfo tmp = new DocInfo();
+                        tmp.setName(rs.getString(1));
+                        tmp.setType(rs.getInt(2));
+                        tmp.setFeiv(rs.getString(3));
+                        files.add(tmp);
+                    }
+
+
+                } catch (SQLException ex) {
+                    String msg = "error when counting documents from tdocuments";
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    out.print(msg);
+                    LOGGER.error(msg, ex);
+                }
+
+                count = files.size();
             }
 
-        } catch (Exception ex) {
-            LOGGER.error("error when processing request", ex);
-            JsonObject err = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
-            out.write(err.toString());
+            if (totalCnt < count) {
+                totalCnt = count;
+            }
+
+            try (
+                    PreparedStatement pStmnt = con.prepareStatement("update tquery_statistics set cendtime = ?, cmatchedcnt = ? where cqueryid = ?");
+            ) {
+
+                pStmnt.setLong(1, System.currentTimeMillis());
+                pStmnt.setInt(2, totalCnt);
+                pStmnt.setString(3, qid);
+
+                rowCnt = pStmnt.executeUpdate();
+
+            } catch (SQLException ex) {
+                String msg = "error when counting documents from tdocuments";
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                out.print(msg);
+                LOGGER.error(msg, ex);
+            }
+
+
+            if (response.getStatus() != HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
+                JsonArray jsonArrayFiles = new JsonArray();
+
+                for (DocInfo docInfo : files) {
+                    JsonObject tmp = new JsonObject();
+                    tmp.addProperty("name", docInfo.getName());
+                    tmp.addProperty("type", docInfo.getType());
+                    tmp.addProperty("feiv", docInfo.getFeiv());
+                    jsonArrayFiles.add(tmp);
+                }
+
+                JsonObject jsonObject = new JsonObject();
+                jsonObject.add("files", jsonArrayFiles);
+                jsonObject.addProperty("count", count);
+                jsonObject.addProperty("totalCount", totalCnt);
+                out.write(jsonObject.toString());
+            }
         }
     }
 

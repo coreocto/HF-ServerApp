@@ -1,4 +1,4 @@
-package org.coreocto.dev.hf.serverapp.util;
+package org.coreocto.dev.hf.serverapp.crypto;
 
 import org.coreocto.dev.hf.commonlib.crypto.IHashFunc;
 

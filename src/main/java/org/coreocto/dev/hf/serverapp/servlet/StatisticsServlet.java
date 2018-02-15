@@ -2,6 +2,7 @@ package org.coreocto.dev.hf.serverapp.servlet;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import org.apache.log4j.Logger;
 import org.coreocto.dev.hf.serverapp.factory.ResponseFactory;
 
 import javax.servlet.ServletContext;
@@ -21,6 +22,9 @@ import java.sql.SQLException;
         name = "StatisticsServlet"
 )
 public class StatisticsServlet extends HttpServlet {
+
+    final static Logger LOGGER = Logger.getLogger(StatisticsServlet.class);
+
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
 
@@ -28,26 +32,12 @@ public class StatisticsServlet extends HttpServlet {
 
         Gson gson = (Gson) ctx.getAttribute("gson");
 
-//	Enumeration<String> attrNames = request.getAttributeNames();
-//	while (attrNames.hasMoreElements()){
-//	    System.out.println("attributes");
-//	    System.out.println(attrNames.nextElement());
-//	}
-//
-//	Enumeration<String> paramNames = request.getParameterNames();
-//	while (paramNames.hasMoreElements()){
-//	    System.out.println("parameters");
-//	    System.out.println(paramNames.nextElement());
-//	}
-
         PrintWriter out = response.getWriter();
 
         String q = request.getParameter("data");
         String type = request.getParameter("type");
 
         JsonObject jsonObj = gson.fromJson(q, JsonObject.class);
-
-        System.out.println(jsonObj);
 
         int affectRows = -1;
 
@@ -69,18 +59,21 @@ public class StatisticsServlet extends HttpServlet {
             pStmnt.setString(6, type);
             affectRows = pStmnt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            String msg = "error when inserting record into tstatistics";
+            LOGGER.error(msg, e);
+            affectRows = -1;
         }
+
+        JsonObject jsonObject = null;
 
         if (affectRows == -1) {
-            JsonObject err = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
-            out.print(err.toString());
+            jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         } else {
-            JsonObject ok = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
-            out.print(ok.toString());
+            jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
         }
 
-        System.out.println("affectRows = " + affectRows);
+        out.print(jsonObject.toString());
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

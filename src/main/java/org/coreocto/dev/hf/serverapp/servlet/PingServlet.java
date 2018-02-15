@@ -1,5 +1,7 @@
 package org.coreocto.dev.hf.serverapp.servlet;
 
+import org.coreocto.dev.hf.serverapp.AppConstants;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -14,9 +16,10 @@ import java.io.IOException;
 public class PingServlet extends HttpServlet {
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.getWriter().append("OK");
+        response.getWriter().append(AppConstants.MSG_OK);
     }
+
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.getWriter().append("OK");
+        response.getWriter().append(AppConstants.MSG_OK);
     }
 }

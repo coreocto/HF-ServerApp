@@ -26,9 +26,9 @@ public class RemoveServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
         PrintWriter out = response.getWriter();
-        String docId = request.getParameter("docId");
-
         Connection con = (Connection) ctx.getAttribute("DBConnection");
+
+        String docId = request.getParameter("docId");
 
         int rowCnt = 0;
 
@@ -39,16 +39,20 @@ public class RemoveServlet extends HttpServlet {
             rowCnt = pStmnt.executeUpdate();
 
         } catch (Exception e) {
-            LOGGER.error("error when marking tdocuments record as deleted", e);
+            LOGGER.error("error when updating tdocuments record as deleted", e);
+            rowCnt = -1;
         }
 
+        JsonObject jsonObject = null;
+
         if (rowCnt > 0) {
-            JsonObject ok = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
-            out.write(ok.toString());
+            jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
         } else {
-            JsonObject err = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
-            out.write(err.toString());
+            jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
+
+        out.write(jsonObject.toString());
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
