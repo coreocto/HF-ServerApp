@@ -1,5 +1,6 @@
 package org.coreocto.dev.hf.serverapp.servlet;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -10,6 +11,7 @@ import org.coreocto.dev.hf.commonlib.sse.vasst.bean.RelScore;
 import org.coreocto.dev.hf.commonlib.util.IBase64;
 import org.coreocto.dev.hf.serverapp.AppConstants;
 import org.coreocto.dev.hf.serverapp.bean.DocInfo;
+import org.coreocto.dev.hf.serverapp.db.DataSource;
 import org.coreocto.dev.hf.serverapp.util.JavaBase64Impl;
 
 import javax.servlet.ServletContext;
@@ -36,7 +38,7 @@ public class SearchServlet extends HttpServlet {
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
-        Connection con = (Connection) ctx.getAttribute("DBConnection");
+//        Connection con = (Connection) ctx.getAttribute("DBConnection");
         Gson gson = (Gson) ctx.getAttribute("gson");
         PrintWriter out = response.getWriter();
 
@@ -47,12 +49,19 @@ public class SearchServlet extends HttpServlet {
 
         String qid = request.getParameter("qid");
 
+        String reqDataProtection = request.getParameter("dp");
+
+        boolean dataProtection = true;
+
+        if (reqDataProtection != null && reqDataProtection.equalsIgnoreCase("no")) {
+            dataProtection = false;
+        }
 
         if (st == null || st.isEmpty()) {
             st = Constants.SSE_TYPE_SUISE + "";
         }
 
-        String q = (qValues != null && qValues.length > 0) ? qValues[0] : "";
+//        String q = (qValues != null && qValues.length > 0) ? qValues[0] : "";
 
         int rowCnt = 0;
 
@@ -60,11 +69,16 @@ public class SearchServlet extends HttpServlet {
             qid = UUID.randomUUID().toString();
         }
 
-        try (PreparedStatement pStmnt = con.prepareStatement("insert into tquery_statistics (cqueryid,cstarttime,cdata,cssetype) values (?,?,?,?)")) {
+        Joiner joiner = Joiner.on(",").skipNulls();
+
+        String joinedQ = joiner.join(qValues);
+
+        try (Connection con = DataSource.getConnection();
+             PreparedStatement pStmnt = con.prepareStatement("insert into tquery_statistics (cqueryid,cstarttime,cdata,cssetype) values (?,?,?,?)")) {
 
             pStmnt.setString(1, qid);
             pStmnt.setLong(2, System.currentTimeMillis());
-            pStmnt.setString(3, q);
+            pStmnt.setString(3, joinedQ);
             pStmnt.setInt(4, Integer.parseInt(st));
             rowCnt = pStmnt.executeUpdate();
 
@@ -96,38 +110,93 @@ public class SearchServlet extends HttpServlet {
                     cachedResult = new HashMap<>();
                 }
 
-                try (
-                        PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and H(ctoken,?)=?)");
-                ) {
+                if (cachedResult.containsKey(joinedQ)) {
+                    files = cachedResult.get(joinedQ);
+                } else {
 
-                    pStmnt.setString(1, q);
-                    pStmnt.setInt(2, 1);
-                    ResultSet result = pStmnt.executeQuery();
-
-                    while (result.next()) {
-                        String docId = result.getString(1);
-                        Integer type = result.getInt(2);
-                        String feiv = result.getString(3);
-
-                        DocInfo docInfo = new DocInfo();
-                        docInfo.setName(docId);
-                        docInfo.setType(type);
-                        docInfo.setFeiv(feiv);
-
-                        files.add(docInfo);
+                    List<String> uniqueQueryVals = new ArrayList<>();
+                    for (String s : qValues) {
+                        if (!uniqueQueryVals.contains(s)) {
+                            uniqueQueryVals.add(s);
+                        }
                     }
 
-                } catch (SQLException ex) {
-                    String msg = "error when fetching document info from tdocuments";
-                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                    out.print(msg);
-                    LOGGER.error(msg, ex);
+                    int numOfQueryTerms = uniqueQueryVals.size();
+
+                    StringBuilder sqlBuilder = new StringBuilder();
+
+                    if (!dataProtection) {
+                        sqlBuilder.append("select cdocid, cft, cfeiv from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and ctoken in (");
+                        String singlePlaceHolder = "?,";
+                        String placeHolders = Strings.repeat(singlePlaceHolder, numOfQueryTerms).substring(0, singlePlaceHolder.length() * numOfQueryTerms - 1);
+                        sqlBuilder.append(placeHolders + "))");
+                    } else {
+//                        sqlBuilder.append("select cdocid, cft, cfeiv from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and (");
+//                        String singlePlaceHolder = "H(ctoken,?)=? or ";
+//                        String placeHolders = Strings.repeat(singlePlaceHolder, numOfQueryTerms).substring(0, singlePlaceHolder.length() * numOfQueryTerms - 4);
+//                        sqlBuilder.append(placeHolders+"))");
+
+                        sqlBuilder.append("select cdocid, cft, cfeiv from tdocuments t where (select count(*) from tdocument_indexes t2 where t.cdocid = t2.cdocid and (");
+                        String singlePlaceHolder = "H(ctoken,?)=? or ";
+                        String placeHolders = Strings.repeat(singlePlaceHolder, numOfQueryTerms).substring(0, singlePlaceHolder.length() * numOfQueryTerms - 4);
+                        sqlBuilder.append(placeHolders + "))=?");
+                    }
+
+                    try (
+                            Connection con = DataSource.getConnection();
+                            PreparedStatement pStmnt = con.prepareStatement(sqlBuilder.toString());
+                    ) {
+
+                        if (dataProtection) {
+                            int curQueryIdx = -1;
+                            for (int i = 0; i < numOfQueryTerms; i++) {
+                                curQueryIdx = i * 2 + 1;
+                                pStmnt.setString(curQueryIdx, uniqueQueryVals.get(i));
+                                pStmnt.setInt(curQueryIdx + 1, 1);
+                            }
+                            curQueryIdx += 2;
+                            pStmnt.setInt(curQueryIdx, numOfQueryTerms);
+                        } else {
+                            int curQueryIdx = -1;
+                            for (int i = 0; i < numOfQueryTerms; i++) {
+                                curQueryIdx = i + 1;
+                                pStmnt.setString(curQueryIdx, uniqueQueryVals.get(i));
+                            }
+                            curQueryIdx++;
+                            pStmnt.setInt(curQueryIdx, numOfQueryTerms);
+                        }
+
+//                        pStmnt.setString(1, q);
+//                        if (dataProtection) {
+//                            pStmnt.setInt(2, 1);
+//                        }
+                        ResultSet result = pStmnt.executeQuery();
+
+                        while (result.next()) {
+                            String docId = result.getString(1);
+                            Integer type = result.getInt(2);
+                            String feiv = result.getString(3);
+
+                            DocInfo docInfo = new DocInfo();
+                            docInfo.setName(docId);
+                            docInfo.setType(type);
+                            docInfo.setFeiv(feiv);
+
+                            files.add(docInfo);
+                        }
+
+                    } catch (SQLException ex) {
+                        String msg = "error when fetching document info from tdocuments";
+                        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                        out.print(msg);
+                        LOGGER.error(msg, ex);
+                    }
+
+                    cachedResult.put(joinedQ, files);
                 }
 
-                cachedResult.put(q, files);
-
                 count = files.size();
-            } else if (st.equalsIgnoreCase(Constants.SSE_TYPE_VASST + "")) {
+            } else if (st.equals(Constants.SSE_TYPE_VASST + "")) {
                 //compute the document score
                 //each matched document will first compute the TF-IDF (the term freq. will be normalized by max occurrence
                 //and each word inside query vector will be computed and normalized with max occurrence also
@@ -135,9 +204,21 @@ public class SearchServlet extends HttpServlet {
 
                 final int MAX_RESULT = 10;
 
-                int numOfQueryTerms = qValues.length;
+                List<String> uniqueQueryVals = new ArrayList<>();
+                for (String s : qValues) {
+                    if (!uniqueQueryVals.contains(s)) {
+                        uniqueQueryVals.add(s);
+                    }
+                }
 
-                String placeHolders = Strings.repeat("md5(?),", numOfQueryTerms).substring(0, 7 * numOfQueryTerms - 1);
+                int numOfQueryTerms = uniqueQueryVals.size();
+                String singlePlaceHolder = null;
+                if (dataProtection) {
+                    singlePlaceHolder = "md5(?),";
+                } else {
+                    singlePlaceHolder = "?,";
+                }
+                String placeHolders = Strings.repeat(singlePlaceHolder, numOfQueryTerms).substring(0, singlePlaceHolder.length() * numOfQueryTerms - 1);
 
                 // find the term freq. inside the query vector
                 Map<String, Integer> queryTermOccur = new HashMap<>();
@@ -163,12 +244,15 @@ public class SearchServlet extends HttpServlet {
                 Map<String, DocInfo> docTypeLookup = new HashMap<>();
 
                 try (
-                        PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))");
+                        Connection con = DataSource.getConnection();
+                        //PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))");
+                        PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where (select count(*) from tdoc_term_freq dtf where d.cdocid = dtf.cdocid and dtf.cword in (" + placeHolders + "))=?");
                 ) {
 
-                    for (int i = qValues.length - 1; i >= 0; i--) {
-                        pStmnt.setString(i + 1, qValues[i]);
+                    for (int i = numOfQueryTerms - 1; i >= 0; i--) {
+                        pStmnt.setString(i + 1, uniqueQueryVals.get(i));
                     }
+                    pStmnt.setInt(numOfQueryTerms + 1, numOfQueryTerms);
 
                     ResultSet result = pStmnt.executeQuery();
 
@@ -198,6 +282,7 @@ public class SearchServlet extends HttpServlet {
                 int docCnt = 0;
 
                 try (
+                        Connection con = DataSource.getConnection();
                         PreparedStatement pStmnt = con.prepareStatement("select count(*) from tdocuments d where exists(select 1 from tdoc_term_freq dtf where d.cdocid = dtf.cdocid)");
                 ) {
 
@@ -217,6 +302,7 @@ public class SearchServlet extends HttpServlet {
                 Map<String, RelScore> docScoreMap = new HashMap<>();
 
                 try (
+                        Connection con = DataSource.getConnection();
                         PreparedStatement pStmnt = con.prepareStatement("select " +
                                 "dtf.ccount, (select max(ccount) from tdoc_term_freq dtf2 where dtf.cword=dtf2.cword) max_ccount, " +
                                 "cword " +
@@ -231,8 +317,8 @@ public class SearchServlet extends HttpServlet {
 
                         pStmnt.setString(1, curDocId);
 
-                        for (int j = qValues.length - 1; j >= 0; j--) {
-                            pStmnt.setString(j + 2, qValues[j]);
+                        for (int j = numOfQueryTerms - 1; j >= 0; j--) {
+                            pStmnt.setString(j + 2, uniqueQueryVals.get(j));
                         }
 
                         ResultSet tmpRs = pStmnt.executeQuery();
@@ -291,31 +377,36 @@ public class SearchServlet extends HttpServlet {
 
                 count = files.size();
                 totalCnt = relScores.size();
-            } else if (st.equalsIgnoreCase(Constants.SSE_TYPE_CHLH + "")) {
+            } else if (st.equals(Constants.SSE_TYPE_CHLH + "")) {
 
-                try (
-                        PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tchlh d2 where search(d2.cbf, ?) = ? and d.cdocid = d2.cdocid)");
-                ) {
+                String localQ = qValues[0];
 
-                    pStmnt.setString(1, q);
-                    pStmnt.setInt(2, 1);
+                if (localQ != null && !localQ.isEmpty()) {
+                    try (
+                            Connection con = DataSource.getConnection();
+                            PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tchlh d2 where search(d2.cbf, ?) = ? and d.cdocid = d2.cdocid)");
+                    ) {
 
-                    ResultSet rs = pStmnt.executeQuery();
+                        pStmnt.setString(1, localQ);
+                        pStmnt.setInt(2, 1);
 
-                    while (rs.next()) {
-                        DocInfo tmp = new DocInfo();
-                        tmp.setName(rs.getString(1));
-                        tmp.setType(rs.getInt(2));
-                        tmp.setFeiv(rs.getString(3));
-                        files.add(tmp);
+                        ResultSet rs = pStmnt.executeQuery();
+
+                        while (rs.next()) {
+                            DocInfo tmp = new DocInfo();
+                            tmp.setName(rs.getString(1));
+                            tmp.setType(rs.getInt(2));
+                            tmp.setFeiv(rs.getString(3));
+                            files.add(tmp);
+                        }
+
+
+                    } catch (SQLException ex) {
+                        String msg = "error when counting documents from tdocuments";
+                        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                        out.print(msg);
+                        LOGGER.error(msg, ex);
                     }
-
-
-                } catch (SQLException ex) {
-                    String msg = "error when counting documents from tdocuments";
-                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                    out.print(msg);
-                    LOGGER.error(msg, ex);
                 }
 
                 count = files.size();
@@ -326,6 +417,7 @@ public class SearchServlet extends HttpServlet {
             }
 
             try (
+                    Connection con = DataSource.getConnection();
                     PreparedStatement pStmnt = con.prepareStatement("update tquery_statistics set cendtime = ?, cmatchedcnt = ? where cqueryid = ?");
             ) {
 
@@ -340,6 +432,10 @@ public class SearchServlet extends HttpServlet {
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 out.print(msg);
                 LOGGER.error(msg, ex);
+            }
+
+            if (rowCnt > 1) {
+                LOGGER.error("update statement affected more than one row");
             }
 
 

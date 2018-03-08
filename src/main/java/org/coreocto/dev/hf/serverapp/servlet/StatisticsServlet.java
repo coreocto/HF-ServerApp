@@ -3,6 +3,7 @@ package org.coreocto.dev.hf.serverapp.servlet;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.apache.log4j.Logger;
+import org.coreocto.dev.hf.serverapp.db.DataSource;
 import org.coreocto.dev.hf.serverapp.factory.ResponseFactory;
 
 import javax.servlet.ServletContext;
@@ -28,7 +29,7 @@ public class StatisticsServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
 
-        Connection con = (Connection) ctx.getAttribute("DBConnection");
+//        Connection con = (Connection) ctx.getAttribute("DBConnection");
 
         Gson gson = (Gson) ctx.getAttribute("gson");
 
@@ -37,43 +38,61 @@ public class StatisticsServlet extends HttpServlet {
         String q = request.getParameter("data");
         String type = request.getParameter("type");
 
-        JsonObject jsonObj = gson.fromJson(q, JsonObject.class);
+        JsonObject jsonObj = null;
 
-        int affectRows = -1;
-
-        try (PreparedStatement pStmnt = con.prepareStatement("INSERT INTO public.tstatistics(cdocid, cstarttime, cendtime, cwordcnt, cfilesize, ctype)" + "VALUES (?, ?, ?, ?, ?, ?)")) {
-
-            pStmnt.setString(1, jsonObj.get("name").getAsString());
-            pStmnt.setLong(2, jsonObj.get("startTime").getAsLong());
-            pStmnt.setLong(3, jsonObj.get("endTime").getAsLong());
-            if (jsonObj.get("wordCount") != null) {
-                pStmnt.setLong(4, jsonObj.get("wordCount").getAsLong());
-            } else {
-                pStmnt.setNull(4, java.sql.Types.BIGINT);
-            }
-            if (jsonObj.get("fileSize") != null) {
-                pStmnt.setLong(5, jsonObj.get("fileSize").getAsLong());
-            } else {
-                pStmnt.setNull(5, java.sql.Types.BIGINT);
-            }
-            pStmnt.setString(6, type);
-            affectRows = pStmnt.executeUpdate();
-        } catch (SQLException e) {
-            String msg = "error when inserting record into tstatistics";
-            LOGGER.error(msg, e);
-            affectRows = -1;
-        }
-
-        JsonObject jsonObject = null;
-
-        if (affectRows == -1) {
-            jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
+        try {
+            jsonObj = gson.fromJson(q, JsonObject.class);
+        } catch (Exception ex) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        } else {
-            jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
+            String msg = "error when parsing json into object";
+            LOGGER.error(msg, ex);
+            out.write(msg);
         }
 
-        out.print(jsonObject.toString());
+        if (jsonObj != null) {
+            int affectRows = -1;
+
+            try (Connection con = DataSource.getConnection();
+                 PreparedStatement pStmnt = con.prepareStatement("INSERT INTO public.tstatistics(cdocid, cstarttime, cendtime, cwordcnt, cfilesize, ctype, cfpr)" + "VALUES (?, ?, ?, ?, ?, ?,?)")) {
+
+                pStmnt.setString(1, jsonObj.get("name").getAsString());
+                pStmnt.setLong(2, jsonObj.get("startTime").getAsLong());
+                pStmnt.setLong(3, jsonObj.get("endTime").getAsLong());
+                if (jsonObj.get("wordCount") != null) {
+                    pStmnt.setLong(4, jsonObj.get("wordCount").getAsLong());
+                } else {
+                    pStmnt.setNull(4, java.sql.Types.BIGINT);
+                }
+                if (jsonObj.get("fileSize") != null) {
+                    pStmnt.setLong(5, jsonObj.get("fileSize").getAsLong());
+                } else {
+                    pStmnt.setNull(5, java.sql.Types.BIGINT);
+                }
+                pStmnt.setString(6, type);
+                if (jsonObj.get("fpr") != null) {
+                    pStmnt.setDouble(7, jsonObj.get("fpr").getAsDouble());
+                } else {
+                    pStmnt.setNull(7, java.sql.Types.DECIMAL);
+                }
+                affectRows = pStmnt.executeUpdate();
+
+            } catch (SQLException e) {
+                String msg = "error when inserting record into tstatistics";
+                LOGGER.error(msg, e);
+                affectRows = -1;
+            }
+
+            JsonObject jsonObject = null;
+
+            if (affectRows == -1) {
+                jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            } else {
+                jsonObject = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_OK);
+            }
+
+            out.print(jsonObject.toString());
+        }
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

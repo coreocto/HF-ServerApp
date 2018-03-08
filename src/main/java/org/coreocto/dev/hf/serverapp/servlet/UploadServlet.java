@@ -10,6 +10,7 @@ import org.coreocto.dev.hf.commonlib.sse.vasst.bean.TermFreq;
 import org.coreocto.dev.hf.commonlib.util.IBase64;
 import org.coreocto.dev.hf.serverapp.AppConstants;
 import org.coreocto.dev.hf.serverapp.crypto.JavaMd5Impl;
+import org.coreocto.dev.hf.serverapp.db.DataSource;
 import org.coreocto.dev.hf.serverapp.util.JavaBase64Impl;
 import org.coreocto.dev.hf.serverapp.util.StringUtil;
 
@@ -53,20 +54,20 @@ public class UploadServlet extends HttpServlet {
             st = Constants.SSE_TYPE_SUISE + "";
         }
 
-        Connection con = (Connection) ctx.getAttribute("DBConnection");
+//        Connection con = (Connection) ctx.getAttribute("DBConnection");
+
         Gson gson = (Gson) ctx.getAttribute("gson");
 
         IBase64 base64 = new JavaBase64Impl();
 
-        LOGGER.debug("queryStr = " + request.getQueryString());
-        LOGGER.debug("tokenInJson = " + tokenInJson);
-        LOGGER.debug("docId = " + docId);
-        LOGGER.debug("ft = " + ft);
-        LOGGER.debug("st = " + st);
-
         if (docId == null || ((st.equals(Constants.SSE_TYPE_SUISE + "") ||
                 st.equals(AppConstants.SSE_TYPE_SUISE_2 + "") ||
                 st.equals(AppConstants.SSE_TYPE_SUISE_3 + "")) && tokenInJson == null)) {
+            LOGGER.debug("queryStr = " + request.getQueryString());
+            LOGGER.debug("tokenInJson = " + tokenInJson);
+            LOGGER.debug("docId = " + docId);
+            LOGGER.debug("ft = " + ft);
+            LOGGER.debug("st = " + st);
             return;
         }
 
@@ -79,7 +80,9 @@ public class UploadServlet extends HttpServlet {
                 st.equalsIgnoreCase(AppConstants.SSE_TYPE_SUISE_3 + "") ||
                 st.equalsIgnoreCase(Constants.SSE_TYPE_VASST + "") ||
                 st.equalsIgnoreCase(Constants.SSE_TYPE_CHLH + "")) {
-            try (PreparedStatement pStmnt = con.prepareStatement("insert into tdocuments (cdocid,cdelete,cft,cst,cweiv,cfeiv,cssetype) select ? as text, ? as integer, cast(? as integer), cast(? as integer), ? as text, ? as text, cast(? as integer) where not exists (select 1 from tdocuments where cdocid = ? and cdelete = ?)")) {
+            try (
+                    Connection con = DataSource.getConnection();
+                    PreparedStatement pStmnt = con.prepareStatement("insert into tdocuments (cdocid,cdelete,cft,cst,cweiv,cfeiv,cssetype) select ? as text, ? as integer, cast(? as integer), cast(? as integer), ? as text, ? as text, cast(? as integer) where not exists (select 1 from tdocuments where cdocid = ? and cdelete = ?)")) {
 
                 int paramIdx = 1;
 
@@ -94,7 +97,7 @@ public class UploadServlet extends HttpServlet {
                 pStmnt.setInt(paramIdx++, 0);
                 rowCnt = pStmnt.executeUpdate();
 
-            } catch (Exception e) {
+            } catch (SQLException e) {
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 String msg = "error when inserting record to tdocuments";
                 LOGGER.error(msg, e);
@@ -129,7 +132,9 @@ public class UploadServlet extends HttpServlet {
 
             int i = 0;
 
-            try (PreparedStatement pStmnt2 = con.prepareStatement("insert into tdocument_indexes (cdocid,ctoken,corder) values (?,?,?)")) {
+            try (
+                    Connection con = DataSource.getConnection();
+                    PreparedStatement pStmnt2 = con.prepareStatement("insert into tdocument_indexes (cdocid,ctoken,corder) values (?,?,?)")) {
 
                 for (String token : addTokenResult.getC()) {
                     pStmnt2.setString(1, addTokenResult.getId());
@@ -167,7 +172,8 @@ public class UploadServlet extends HttpServlet {
 
             IHashFunc md5 = new JavaMd5Impl();
 
-            try (PreparedStatement pStmnt = con.prepareStatement("insert into tdoc_term_freq (cdocid,cword,ccount) values (?,?,?)")) {
+            try (Connection con = DataSource.getConnection();
+                 PreparedStatement pStmnt = con.prepareStatement("insert into tdoc_term_freq (cdocid,cword,ccount) values (?,?,?)")) {
 
                 Map<String, Integer> termsMap = termFreq.getTerms();
                 for (String key : termsMap.keySet()) {
@@ -210,17 +216,19 @@ public class UploadServlet extends HttpServlet {
 
             String encDocId = index.getDocId();
 
-            try (PreparedStatement ps = con.prepareStatement("insert into tchlh (cdocid, cbf) values (?,?)")) {
-
-                ps.clearParameters();
+            try (Connection con = DataSource.getConnection();
+                 PreparedStatement ps = con.prepareStatement("insert into tchlh (cdocid, cbf) values (?,?)")) {
 
                 int size = bloomFilters.size();
 
                 for (int i = 0; i < size; i++) {
+
+                    ps.clearParameters();
+
                     String s = bloomFilters.get(i);
                     ps.setString(1, encDocId);
                     ps.setString(2, s);
-                    rowCnt+=ps.executeUpdate();
+                    rowCnt += ps.executeUpdate();
                 }
 
             } catch (SQLException e) {
