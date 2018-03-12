@@ -39,29 +39,20 @@
     </repositories>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/commons-fileupload/commons-fileupload -->
-        <!--<dependency>-->
-            <!--<groupId>commons-fileupload</groupId>-->
-            <!--<artifactId>commons-fileupload</artifactId>-->
-            <!--<version>1.3.3</version>-->
-        <!--</dependency>-->
+
         <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.8.1</version>
         </dependency>
+
         <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.1.4</version>
         </dependency>
-        <!--<dependency>-->
-            <!--<groupId>com.google.api-client</groupId>-->
-            <!--<artifactId>google-api-client</artifactId>-->
-            <!--<version>1.22.0</version>-->
-        <!--</dependency>-->
 
         <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
         <dependency>
@@ -73,14 +64,19 @@
         <dependency>
             <groupId>com.github.coreocto</groupId>
             <artifactId>HF-ServerLib</artifactId>
-            <version>72515da</version>
+            <version>774dcdd</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/log4j/log4j -->
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.6.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.6.6</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
@@ -99,6 +95,18 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.coreocto</groupId>
+            <artifactId>HF-ClientLib</artifactId>
+            <version>c80b493</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP-java7</artifactId>
+            <version>2.4.13</version>
+        </dependency>
 
     </dependencies>
 

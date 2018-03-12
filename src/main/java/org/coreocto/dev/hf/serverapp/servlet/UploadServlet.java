@@ -54,8 +54,6 @@ public class UploadServlet extends HttpServlet {
             st = Constants.SSE_TYPE_SUISE + "";
         }
 
-//        Connection con = (Connection) ctx.getAttribute("DBConnection");
-
         Gson gson = (Gson) ctx.getAttribute("gson");
 
         IBase64 base64 = new JavaBase64Impl();
@@ -239,58 +237,6 @@ public class UploadServlet extends HttpServlet {
                 rowCnt = -1;
             }
         }
-//        else if (st.equalsIgnoreCase(Constants.SSE_TYPE_MCES + "")) {
-//            String ct = request.getParameter("ct");
-//
-//            try {
-//                CT curCt = gson.fromJson(ct, CT.class);
-//
-//                try (
-//                        PreparedStatement insertCStmnt = con.prepareStatement("insert into tmces_c (ckey, cvalue, cdocid) values (?,?,?)");
-//                        PreparedStatement insertLStmnt = con.prepareStatement("insert into tmces_l (ckey, cvalue, cdocid) values (?,?,?)");
-//                        PreparedStatement insertDStmnt = con.prepareStatement("insert into tmces_d (ckey, cvalue, cdocid) values (?,?,?)");
-//                ) {
-//
-//                    //for (CT curCt:ctList){
-//                    Map<String, String> cKeyVal = curCt.getC();
-//                    for (Map.Entry<String, String> entry : cKeyVal.entrySet()) {
-//                        insertCStmnt.clearParameters();
-//                        insertCStmnt.setString(1, entry.getKey());
-//                        insertCStmnt.setString(2, entry.getValue());
-//                        insertCStmnt.setString(3, docId);
-//                        insertCStmnt.executeUpdate();
-//                    }
-//
-//                    Map<String, List<String>> dKeyVal = curCt.getD();
-//                    for (Map.Entry<String, List<String>> entry : dKeyVal.entrySet()) {
-//                        insertDStmnt.clearParameters();
-//                        insertDStmnt.setString(1, entry.getKey());
-//                        insertDStmnt.setString(2, gson.toJson(entry.getValue()));
-//                        insertDStmnt.setString(3, docId);
-//                        insertDStmnt.executeUpdate();
-//                    }
-//
-//                    Map<String, String> lKeyVal = curCt.getL();
-//                    for (Map.Entry<String, String> entry : lKeyVal.entrySet()) {
-//                        insertLStmnt.clearParameters();
-//                        insertLStmnt.setString(1, entry.getKey());
-//                        insertLStmnt.setString(2, gson.toJson(entry.getValue()));
-//                        insertLStmnt.setString(3, docId);
-//                        insertLStmnt.executeUpdate();
-//                    }
-//                    //}
-//
-//                } catch (Exception e) {
-//                    LOGGER.error("error when inserting record to tdoc_term_freq", e);
-//                    throw e;
-//                }
-//
-//            } catch (Exception ex) {
-//                JsonObject err = ResponseFactory.getResponse(ResponseFactory.ResponseType.GENERIC_JSON_ERR);
-//                out.write(err.toString());
-//                throw new ServletException(ex);
-//            }
-//        }
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

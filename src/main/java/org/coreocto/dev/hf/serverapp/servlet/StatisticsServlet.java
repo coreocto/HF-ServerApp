@@ -29,8 +29,6 @@ public class StatisticsServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
 
-//        Connection con = (Connection) ctx.getAttribute("DBConnection");
-
         Gson gson = (Gson) ctx.getAttribute("gson");
 
         PrintWriter out = response.getWriter();

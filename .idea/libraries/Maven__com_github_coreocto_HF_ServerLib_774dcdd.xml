@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.github.coreocto:HF-ServerLib:774dcdd">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/coreocto/HF-ServerLib/774dcdd/HF-ServerLib-774dcdd.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/coreocto/HF-ServerLib/774dcdd/HF-ServerLib-774dcdd-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/coreocto/HF-ServerLib/774dcdd/HF-ServerLib-774dcdd-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

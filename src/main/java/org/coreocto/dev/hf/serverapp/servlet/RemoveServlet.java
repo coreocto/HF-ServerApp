@@ -2,6 +2,7 @@ package org.coreocto.dev.hf.serverapp.servlet;
 
 import com.google.gson.JsonObject;
 import org.apache.log4j.Logger;
+import org.coreocto.dev.hf.serverapp.db.DataSource;
 import org.coreocto.dev.hf.serverapp.factory.ResponseFactory;
 
 import javax.servlet.ServletContext;
@@ -26,13 +27,13 @@ public class RemoveServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
         PrintWriter out = response.getWriter();
-        Connection con = (Connection) ctx.getAttribute("DBConnection");
 
         String docId = request.getParameter("docId");
 
         int rowCnt = 0;
 
-        try (PreparedStatement pStmnt = con.prepareStatement("update tdocuments set cdelete = ? where cdocid = ?")) {
+        try (Connection con = DataSource.getConnection();
+             PreparedStatement pStmnt = con.prepareStatement("update tdocuments set cdelete = ? where cdocid = ?")) {
 
             pStmnt.setInt(1, 1);
             pStmnt.setString(2, docId);

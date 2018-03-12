@@ -38,7 +38,7 @@ public class SearchServlet extends HttpServlet {
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ServletContext ctx = getServletContext();
-//        Connection con = (Connection) ctx.getAttribute("DBConnection");
+
         Gson gson = (Gson) ctx.getAttribute("gson");
         PrintWriter out = response.getWriter();
 
@@ -60,8 +60,6 @@ public class SearchServlet extends HttpServlet {
         if (st == null || st.isEmpty()) {
             st = Constants.SSE_TYPE_SUISE + "";
         }
-
-//        String q = (qValues != null && qValues.length > 0) ? qValues[0] : "";
 
         int rowCnt = 0;
 

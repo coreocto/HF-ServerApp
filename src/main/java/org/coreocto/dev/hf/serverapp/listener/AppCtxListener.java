@@ -2,9 +2,6 @@ package org.coreocto.dev.hf.serverapp.listener;
 
 import com.google.gson.Gson;
 import org.apache.log4j.Logger;
-import org.coreocto.dev.hf.commonlib.util.Registry;
-import org.coreocto.dev.hf.serverapp.crypto.JavaMd5Impl;
-import org.coreocto.dev.hf.serverapp.util.JavaBase64Impl;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
@@ -35,10 +32,5 @@ public class AppCtxListener implements ServletContextListener {
 
         Gson gson = new Gson();
         ctx.setAttribute("gson", gson);
-
-        Registry registry = new Registry();
-        registry.setBase64(new JavaBase64Impl());
-        registry.setHashFunc(new JavaMd5Impl());
-        ctx.setAttribute("registry", registry);
     }
 }
