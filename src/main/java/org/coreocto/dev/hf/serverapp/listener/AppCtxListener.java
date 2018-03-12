@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import org.apache.log4j.Logger;
 import org.coreocto.dev.hf.commonlib.util.Registry;
 import org.coreocto.dev.hf.serverapp.crypto.JavaMd5Impl;
-import org.coreocto.dev.hf.serverapp.db.DBConnMgr;
 import org.coreocto.dev.hf.serverapp.util.JavaBase64Impl;
 
 import javax.servlet.ServletContext;
@@ -33,18 +32,6 @@ public class AppCtxListener implements ServletContextListener {
         ServletContext ctx = arg0.getServletContext();
 
         LOGGER.debug("contextPath = " + ctx.getContextPath());
-
-        // initialize DB Connection
-        String dbURL = ctx.getInitParameter("dbURL");
-        String user = ctx.getInitParameter("dbUser");
-        String pwd = ctx.getInitParameter("dbPassword");
-
-        try {
-            DBConnMgr connectionManager = new DBConnMgr(dbURL, user, pwd);
-            ctx.setAttribute("DBConnection", connectionManager.getConnection());
-        } catch (Exception e) {
-            LOGGER.error("error when opening database connection", e);
-        }
 
         Gson gson = new Gson();
         ctx.setAttribute("gson", gson);
