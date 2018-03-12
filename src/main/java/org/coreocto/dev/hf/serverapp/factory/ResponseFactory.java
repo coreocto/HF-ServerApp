@@ -17,6 +17,7 @@ public class ResponseFactory {
         } else if (type == ResponseType.GENERIC_JSON_ERR) {
             JsonObject jsonObj = new JsonObject();
             jsonObj.addProperty("status", "error");
+            return jsonObj;
         }
 
         return null;
