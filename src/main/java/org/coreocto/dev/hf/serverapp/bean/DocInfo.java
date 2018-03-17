@@ -4,6 +4,15 @@ public class DocInfo {
     private String name;
     private int type;
     private String feiv;
+    private String weiv;
+
+    public String getWeiv() {
+        return weiv;
+    }
+
+    public void setWeiv(String weiv) {
+        this.weiv = weiv;
+    }
 
     public String getFeiv() {
         return feiv;

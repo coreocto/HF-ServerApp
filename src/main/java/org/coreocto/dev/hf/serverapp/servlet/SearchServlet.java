@@ -129,11 +129,6 @@ public class SearchServlet extends HttpServlet {
                         String placeHolders = Strings.repeat(singlePlaceHolder, numOfQueryTerms).substring(0, singlePlaceHolder.length() * numOfQueryTerms - 1);
                         sqlBuilder.append(placeHolders + "))");
                     } else {
-//                        sqlBuilder.append("select cdocid, cft, cfeiv from tdocuments t where exists(select 1 from tdocument_indexes t2 where t.cdocid = t2.cdocid and (");
-//                        String singlePlaceHolder = "H(ctoken,?)=? or ";
-//                        String placeHolders = Strings.repeat(singlePlaceHolder, numOfQueryTerms).substring(0, singlePlaceHolder.length() * numOfQueryTerms - 4);
-//                        sqlBuilder.append(placeHolders+"))");
-
                         sqlBuilder.append("select cdocid, cft, cfeiv from tdocuments t where (select count(*) from tdocument_indexes t2 where t.cdocid = t2.cdocid and (");
                         String singlePlaceHolder = "H(ctoken,?)=? or ";
                         String placeHolders = Strings.repeat(singlePlaceHolder, numOfQueryTerms).substring(0, singlePlaceHolder.length() * numOfQueryTerms - 4);
@@ -382,7 +377,7 @@ public class SearchServlet extends HttpServlet {
                 if (localQ != null && !localQ.isEmpty()) {
                     try (
                             Connection con = DataSource.getConnection();
-                            PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv from tdocuments d where exists(select 1 from tchlh d2 where search(d2.cbf, ?) = ? and d.cdocid = d2.cdocid)");
+                            PreparedStatement pStmnt = con.prepareStatement("select cdocid, cft, cfeiv, cweiv from tdocuments d where exists(select 1 from tchlh d2 where search(d2.cbf, ?) = ? and d.cdocid = d2.cdocid)");
                     ) {
 
                         pStmnt.setString(1, localQ);
@@ -395,6 +390,7 @@ public class SearchServlet extends HttpServlet {
                             tmp.setName(rs.getString(1));
                             tmp.setType(rs.getInt(2));
                             tmp.setFeiv(rs.getString(3));
+                            tmp.setWeiv(rs.getString(4));
                             files.add(tmp);
                         }
 
@@ -445,6 +441,7 @@ public class SearchServlet extends HttpServlet {
                     tmp.addProperty("name", docInfo.getName());
                     tmp.addProperty("type", docInfo.getType());
                     tmp.addProperty("feiv", docInfo.getFeiv());
+                    tmp.addProperty("weiv", docInfo.getWeiv());
                     jsonArrayFiles.add(tmp);
                 }
 
