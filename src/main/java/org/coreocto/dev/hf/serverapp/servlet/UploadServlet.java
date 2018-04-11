@@ -77,6 +77,8 @@ public class UploadServlet extends HttpServlet {
                 st.equalsIgnoreCase(AppConstants.SSE_TYPE_SUISE_2 + "") ||
                 st.equalsIgnoreCase(AppConstants.SSE_TYPE_SUISE_3 + "") ||
                 st.equalsIgnoreCase(Constants.SSE_TYPE_VASST + "") ||
+                st.equalsIgnoreCase(AppConstants.SSE_TYPE_VASST_2 + "") ||
+                st.equalsIgnoreCase(AppConstants.SSE_TYPE_VASST_3 + "") ||
                 st.equalsIgnoreCase(Constants.SSE_TYPE_CHLH + "")) {
             try (
                     Connection con = DataSource.getConnection();
@@ -150,7 +152,9 @@ public class UploadServlet extends HttpServlet {
                 rowCnt = -1;
             }
 
-        } else if (st.equalsIgnoreCase(Constants.SSE_TYPE_VASST + "")) {
+        } else if (st.equalsIgnoreCase(Constants.SSE_TYPE_VASST + "") ||
+                st.equalsIgnoreCase(AppConstants.SSE_TYPE_VASST_2 + "") ||
+                st.equalsIgnoreCase(AppConstants.SSE_TYPE_VASST_3 + "")) {
 
             TermFreq termFreq = null;
 
