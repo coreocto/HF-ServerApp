@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.github.coreocto:HF-ClientLib:c80b493">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/coreocto/HF-ClientLib/c80b493/HF-ClientLib-c80b493.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/coreocto/HF-ClientLib/c80b493/HF-ClientLib-c80b493-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/coreocto/HF-ClientLib/c80b493/HF-ClientLib-c80b493-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -28,5 +28,27 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="PROVIDED" name="Tomcat 8.0.0" level="application_server_libraries" />
+    <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.8.1" level="project" />
+    <orderEntry type="library" name="Maven: org.postgresql:postgresql:42.1.4" level="project" />
+    <orderEntry type="library" name="Maven: com.google.guava:guava:23.5-jre" level="project" />
+    <orderEntry type="library" name="Maven: com.google.code.findbugs:jsr305:1.3.9" level="project" />
+    <orderEntry type="library" name="Maven: org.checkerframework:checker-qual:2.0.0" level="project" />
+    <orderEntry type="library" name="Maven: com.google.errorprone:error_prone_annotations:2.0.18" level="project" />
+    <orderEntry type="library" name="Maven: com.google.j2objc:j2objc-annotations:1.1" level="project" />
+    <orderEntry type="library" name="Maven: org.codehaus.mojo:animal-sniffer-annotations:1.14" level="project" />
+    <orderEntry type="library" name="Maven: com.github.coreocto:HF-ServerLib:774dcdd" level="project" />
+    <orderEntry type="library" name="Maven: log4j:log4j:1.2.17" level="project" />
+    <orderEntry type="library" name="Maven: com.github.coreocto:HF-CommonLib:6f28fd6" level="project" />
+    <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.6.6" level="project" />
+    <orderEntry type="library" name="Maven: org.slf4j:slf4j-log4j12:1.6.6" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.12" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.hamcrest:hamcrest-core:1.3" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.httpcomponents:httpclient:4.5.5" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.httpcomponents:httpcore:4.4.9" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: commons-logging:commons-logging:1.2" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: commons-codec:commons-codec:1.10" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: com.github.coreocto:HF-ClientLib:c80b493" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: com.github.caarmen:porter-stemmer:release-1.0.0" level="project" />
+    <orderEntry type="library" name="Maven: com.zaxxer:HikariCP-java7:2.4.13" level="project" />
   </component>
 </module>
